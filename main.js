@@ -104,7 +104,6 @@ module.exports = class TableColorPlugin extends Plugin {
     setupLivePreviewColoring();
     console.log("Table Color Plugin loaded");
 
-    await this.loadSettings();
     const rawSaved = await this.loadData() || {};
 
     this._appliedContainers = new WeakMap();
@@ -590,6 +589,9 @@ module.exports = class TableColorPlugin extends Plugin {
       close() {
         if (this.menuEl && this.menuEl.parentNode) this.menuEl.parentNode.removeChild(this.menuEl);
         if (this._outsideHandler) document.removeEventListener('mousedown', this._outsideHandler);
+        if (typeof this.onPick === 'function') {
+          this.onPick(this.color); // <-- Save the picked color!
+        }
       }
 
       hsvToHex(h, s, v) {
@@ -1035,7 +1037,7 @@ class ColorTableSettingTab extends PluginSettingTab {
       { label: "<", value: "lt" },
       { label: "≤", value: "le" },
       { label: "=", value: "eq" },
-      { label: ">=", value: "ge" },
+      { label: "≥", value: "ge" },
       { label: ">", value: "gt" }
     ];
     opOptions.forEach(opt => {
