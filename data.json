@@ -1,0 +1,148 @@
+{
+  "settings": {
+    "defaultBgColor": "#1b2132",
+    "defaultTextColor": "#ff9494",
+    "enableContextMenu": true,
+    "rules": [
+      {
+        "match": "EXAM:",
+        "bg": "#2a162c",
+        "color": "#cf94ff"
+      },
+      {
+        "match": "Problem",
+        "bg": "#291515",
+        "color": "#ffa8a8"
+      },
+      {
+        "match": "#uploaded",
+        "bg": "#243e19",
+        "color": "#a0ff99"
+      },
+      {
+        "match": "GOOD:",
+        "bg": "#1b3120",
+        "color": "#adffb3"
+      },
+      {
+        "match": "BAD:",
+        "bg": "#2d1010",
+        "color": "#ffd6d6"
+      }
+    ],
+    "numericRules": [
+      {
+        "op": "le",
+        "value": 12,
+        "color": "#ff9494",
+        "bg": "#321b1b"
+      },
+      {
+        "op": "gt",
+        "value": 12,
+        "color": "#a6ff94",
+        "bg": "#1b3223"
+      }
+    ],
+    "numericStrict": true,
+    "livePreviewColoring": false
+  },
+  "cellData": {
+    "settings": {
+      "defaultBgColor": "#fff9c4",
+      "defaultTextColor": "#000000",
+      "enableContextMenu": true,
+      "rules": [
+        {
+          "match": "EXAM:",
+          "bg": "#363636",
+          "color": "#c7f8ff"
+        },
+        {
+          "match": "Problem",
+          "bg": "#291515",
+          "color": "#ffa8a8"
+        }
+      ]
+    },
+    "cellData": {
+      "settings": {
+        "defaultBgColor": "#fff9c4",
+        "defaultTextColor": "#000000",
+        "enableContextMenu": true,
+        "rules": [
+          {
+            "match": "EXAM:",
+            "bg": "#363636",
+            "color": "#c7f8ff"
+          },
+          {
+            "match": "Problem",
+            "bg": "#291515",
+            "color": "#ffa8a8"
+          }
+        ]
+      },
+      "cellData": {
+        "settings": {
+          "defaultBgColor": "#331717",
+          "defaultTextColor": "#ffb2b2",
+          "enableContextMenu": true,
+          "rules": [
+            {
+              "match": "Problem",
+              "bg": "#291515",
+              "color": "#ffa8a8"
+            },
+            {
+              "match": "EXAM:",
+              "bg": "#363636",
+              "color": "#c7f8ff"
+            }
+          ]
+        },
+        "cellData": {
+          "File.md": {
+            "table_0": {
+              "row_5": {
+                "col_1": {
+                  "color": "#ffb68f"
+                }
+              },
+              "row_1": {
+                "col_1": {
+                  "color": "#882525"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "File.md": {
+      "table_0": {
+        "row_1": {
+          "col_1": {
+            "bg": "#16221c",
+            "color": "#a0ff9e"
+          }
+        },
+        "row_4": {
+          "col_1": {
+            "bg": "#38340f"
+          }
+        },
+        "row_5": {},
+        "row_6": {},
+        "row_10": {}
+      },
+      "table_1": {
+        "row_3": {
+          "col_3": {
+            "bg": "#390432"
+          }
+        }
+      }
+    }
+  }
+}

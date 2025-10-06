@@ -1,0 +1,138 @@
+td[style*="background-color"],
+th[style*="background-color"] {
+  transition: box-shadow 0.15s ease;
+}
+td[style*="background-color"]:hover,
+th[style*="background-color"]:hover {
+  box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+/* Settings tab rule editing */
+.rule-input { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.rule-input input[type="text"] { flex: 1; padding: 4px 6px; }
+.rule-match { padding-right: 8px; }
+.rule-match[hidden] { display: none; }
+.rule-delete-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; }
+.rule-delete-btn:hover { color: var(--interactive-accent); }
+
+.lucide { vertical-align: middle; margin-right: 6px; }
+.rule-delete-btn .lucide { margin-right: 0; }
+
+.setting-item input[type="text"] { padding: 4px 6px; min-width: 120px; }
+
+.rule-controls { display: inline-flex; gap: 6px; align-items: center; margin-left: 8px; }
+.rule-controls .mod-cta, .rule-controls .mod-ghost { padding: 4px; }
+
+.rule-left-controls { display: inline-flex; gap: 4px; align-items: center; margin-right: 8px; }
+.rule-left-controls .mod-ghost { padding: 4px; }
+
+.drag-handle { cursor: grab; display: inline-block; margin-right: 8px; color: var(--text-muted); }
+.drag-handle:active { cursor: grabbing; }
+
+.drag-handle .drag-bar { display: block; width: 14px; height: 2px; background: currentColor; margin: 2.5px 0; padding-top: 1px; opacity: .9; }
+
+.rules-list .setting-item.dragging { opacity: 0.6; }
+.rules-list .setting-item.rule-over { outline: 1px dashed var(--interactive-accent); }
+
+
+
+.pretty-flex {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-bottom: 1em !important;
+}
+
+
+.num-op-select {
+  height: 1.8em !important;
+  min-width: 2.7em;
+  font-size: 1.1em;
+}
+
+.num-value-input {
+  height: 2.4em;
+  border-radius: 4px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 0.4em;
+}
+
+
+.num-color-picker,
+.num-bg-picker,
+.add-rule-color-picker,
+.add-rule-bg-picker {
+  height: 2.4em;
+  width: 2em;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.add-btn,
+.add-rule-btn {
+  background: var(--interactive-accent) !important;
+  border: none;
+  min-width: 6em;
+  height: 2.4em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  color: var(--text-on-accent, #fff);
+  font-weight: 500;
+  font-size: var(--font-ui-small);
+  margin-left: 0.2em;
+}
+
+.add-btn:hover,
+.add-rule-btn:hover {
+  background: var(--interactive-accent-hover) !important;
+}
+
+.num-rule-row .add-btn,
+.num-rule-row .add-rule-btn {
+  align-self: center;
+  margin-top: 0 !important;
+}
+
+.num-rules-list .setting-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.num-rule-label {
+  font-weight: 500;
+  font-size: 1em;
+  margin-left: 0.5em;
+}
+
+.num-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.drag-handle {
+  cursor: grab;
+  margin-right: 0.5em;
+  color: var(--text-faint);
+}
+
+.rule-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.2em;
+}
+
+.num-rule-over {
+  background: var(--background-modifier-hover);
+  border-radius: 4px;
+}
