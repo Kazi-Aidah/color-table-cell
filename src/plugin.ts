@@ -393,28 +393,11 @@ export default class TableColorPlugin extends Plugin {
     await this.saveData({ settings: this.settings, cellData: this.cellData });
   }
 
-  async fetchAllReleases(): Promise<Array<{ name: string; tag_name: string; body: string; published_at: string }>> {
-    const allReleases: Array<{ name: string; tag_name: string; body: string; published_at: string }> = [];
-    let page = 1;
-    let hasMore = true;
-    while (hasMore) {
-      const url = `https://api.github.com/repos/Kazi-Aidah/color-table-cells/releases?page=${page}&per_page=100`;
-      try {
-        let data = null;
-        try {
-          const res = await (await import("obsidian")).requestUrl({ url, headers: { Accept: "application/vnd.github.v3+json", "User-Agent": "Obsidian-Color-Table-Cells" } });
-          data = res.json || (res.text ? JSON.parse(res.text) : null);
-        } catch { /* fallback to fetch */ }
-        if (!data) {
-          const r = await fetch(url, { headers: { Accept: "application/vnd.github.v3+json" } });
-          if (!r.ok) throw new Error("Network error");
-          data = await r.json();
-        }
-        if (!Array.isArray(data) || data.length === 0) { hasMore = false; }
-        else { allReleases.push(...data); if (data.length < 100) hasMore = false; else page++; }
-      } catch { hasMore = false; }
-    }
-    return allReleases;
+  async fetchChangelog(): Promise<string> {
+    const url = "https://raw.githubusercontent.com/Kazi-Aidah/color-table-cells/HEAD/CHANGELOG.md";
+    const r = await fetch(url);
+    if (!r.ok) throw new Error("Network error");
+    return r.text();
   }
 
   updateRecentColor(color: string): void {

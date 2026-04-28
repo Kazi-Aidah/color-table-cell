@@ -1,4 +1,4 @@
-import { App, Modal, MarkdownRenderer, Component, requestUrl } from "obsidian";
+import { App, Modal, MarkdownRenderer, Component } from "obsidian";
 import type TableColorPlugin from "../plugin";
 
 export class ChangelogModal extends Modal {
@@ -29,10 +29,10 @@ export class ChangelogModal extends Modal {
     });
 
     try {
-      const releases = await this.plugin.fetchAllReleases();
+      const markdown = await this.plugin.fetchChangelog();
       loading.remove();
 
-      if (!releases || releases.length === 0) {
+      if (!markdown || !markdown.trim()) {
         body.createEl("p", {
           text: "No release notes available.",
           cls: "ctc-release-empty",
@@ -40,40 +40,22 @@ export class ChangelogModal extends Modal {
         return;
       }
 
-      for (const release of releases) {
-        const meta = body.createDiv({ cls: "ctc-release-meta" });
-        meta.createEl("div", {
-          text: release.name || release.tag_name,
-          cls: "ctc-release-name",
+      const notesEl = body.createDiv({ cls: "ctc-release-notes" });
+      try {
+        await MarkdownRenderer.render(
+          this.app,
+          markdown,
+          notesEl,
+          "",
+          new Component(),
+        );
+      } catch {
+        notesEl.createEl("pre", {
+          text: markdown,
+          cls: "ctc-release-notes-fallback",
         });
-        if (release.published_at) {
-          meta.createEl("span", {
-            text: new Date(release.published_at).toLocaleDateString(),
-            cls: "ctc-release-date",
-          });
-        }
-
-        const notesEl = body.createDiv({ cls: "ctc-release-notes" });
-        if (release.body) {
-          try {
-            await MarkdownRenderer.render(
-              this.app,
-              release.body,
-              notesEl,
-              "",
-              new Component(),
-            );
-          } catch {
-            notesEl.createEl("pre", {
-              text: release.body,
-              cls: "ctc-release-notes-fallback",
-            });
-          }
-        } else {
-          notesEl.createEl("p", { text: "No notes for this release." });
-        }
       }
-    } catch (e) {
+    } catch {
       loading.remove();
       body.createEl("p", {
         text: "Failed to load release notes. Check your internet connection.",

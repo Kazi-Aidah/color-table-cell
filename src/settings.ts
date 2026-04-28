@@ -232,23 +232,29 @@ export class ColorTableSettingTab extends PluginSettingTab {
           this.plugin.applyColorsToActiveFile();
         });
 
-        const colorPicker = row.createEl("input", { type: "color", cls: "ctc-cr-color-picker" });
-        colorPicker.value = rule.color || "#000000";
-        colorPicker.title = "Text color";
-        colorPicker.addEventListener("change", async () => {
-          rule.color = colorPicker.value;
-          await this.plugin.saveSettings();
-          this.plugin.applyColorsToActiveFile();
-        });
+        const colorPickerSetting = new Setting(row)
+          .setClass("ctc-cr-color-setting")
+          .addColorPicker((cp) => {
+            cp.setValue(rule.color || "#000000");
+            cp.onChange(async (v) => {
+              rule.color = v;
+              await this.plugin.saveSettings();
+              this.plugin.applyColorsToActiveFile();
+            });
+          });
+        colorPickerSetting.settingEl.title = "Text color";
 
-        const bgPicker = row.createEl("input", { type: "color", cls: "ctc-cr-bg-picker" });
-        bgPicker.value = rule.bg || "#000000";
-        bgPicker.title = "Background color";
-        bgPicker.addEventListener("change", async () => {
-          rule.bg = bgPicker.value;
-          await this.plugin.saveSettings();
-          this.plugin.applyColorsToActiveFile();
-        });
+        const bgPickerSetting = new Setting(row)
+          .setClass("ctc-cr-bg-setting")
+          .addColorPicker((cp) => {
+            cp.setValue(rule.bg || "#000000");
+            cp.onChange(async (v) => {
+              rule.bg = v;
+              await this.plugin.saveSettings();
+              this.plugin.applyColorsToActiveFile();
+            });
+          });
+        bgPickerSetting.settingEl.title = "Background color";
 
         const delBtn = row.createEl("button", { cls: "mod-ghost ctc-cr-del-btn" });
         try { setIcon(delBtn, "x"); } catch { delBtn.textContent = "×"; }
@@ -505,7 +511,20 @@ export class ColorTableSettingTab extends PluginSettingTab {
           if (!file) return;
           const text = await file.text();
           const data = JSON.parse(text);
-          if (data.settings) Object.assign(this.plugin.settings, data.settings);
+          // Only accept files that were exported by this plugin
+          if (!data.settings || !data.exportDate) {
+            new Notice("Invalid backup file: not a Color Table Cells export.");
+            return;
+          }
+          // Validate settings keys against known defaults
+          const knownKeys = new Set(Object.keys(this.plugin.settings));
+          const importedSettings = data.settings as Record<string, unknown>;
+          const unknownKeys = Object.keys(importedSettings).filter((k) => !knownKeys.has(k));
+          if (unknownKeys.length > 0) {
+            new Notice(`Import aborted: unrecognised settings keys: ${unknownKeys.join(", ")}`);
+            return;
+          }
+          Object.assign(this.plugin.settings, importedSettings);
           if (data.cellData) this.plugin.cellData = data.cellData;
           await this.plugin.saveSettings();
           this.display();

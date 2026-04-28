@@ -764,3 +764,10 @@ body:not(.is-mobile) .ctc-cr-delete-container {
 body:not(.is-mobile) .ctc-cr-delete-row {
     flex: 0 1 auto;
 }
+
+.sc-home-file-item {
+  background-color: var(--background-modifier-form-field);
+  &:hover {
+    background-color: var(--background-modifier-form-field-hover);
+  }
+}

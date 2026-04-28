@@ -86,13 +86,7 @@ export function hsvToHex(h: number, s: number, v: number): string {
 
 /** Get the visible text content of a table cell */
 export function getCellText(cell: HTMLElement): string {
-  // Try to get text from the cell's text content, stripping HTML
-  const clone = cell.cloneNode(true) as HTMLElement;
-  // Remove any hidden elements
-  clone.querySelectorAll("[style*='display: none'], [hidden]").forEach((el) =>
-    el.remove(),
-  );
-  return (clone.textContent || "").trim();
+  return (cell.innerText || "").trim();
 }
 
 /** Check if an element is visible in the DOM */

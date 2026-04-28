@@ -1,7 +1,6 @@
 import { App, Modal, Setting, setIcon } from "obsidian";
 import { WHEN_OPTIONS, MATCH_OPTIONS } from "../constants";
-import type { AdvancedCondition, AdvancedRule } from "../types";
-import type TableColorPlugin from "../plugin";
+import type { AdvancedCondition, AdvancedRule, ITableColorPlugin } from "../types";
 
 class ConditionRow {
   private containerEl: HTMLElement;
@@ -74,10 +73,10 @@ class ConditionRow {
 }
 
 export class AdvancedRuleModal extends Modal {
-  private plugin: TableColorPlugin;
+  private plugin: ITableColorPlugin;
   private index: number;
 
-  constructor(app: App, plugin: TableColorPlugin, index: number) {
+  constructor(app: App, plugin: ITableColorPlugin, index: number) {
     super(app);
     this.plugin = plugin;
     this.index = index;
@@ -161,26 +160,26 @@ export class AdvancedRuleModal extends Modal {
     // Colors
     const colorRow = contentEl.createDiv({ cls: "ctc-cr-adv-color-row" });
 
-    const textColorContainer = colorRow.createDiv({ cls: "ctc-cr-adv-text-color-container" });
-    textColorContainer.createEl("span", { text: "Text:" });
-    const textColorPicker = textColorContainer.createEl("input", {
-      type: "color",
-      cls: "ctc-cr-adv-text-color",
-    });
-    textColorPicker.value = rule.color || "#ffffff";
-    const textResetBtn = textColorContainer.createEl("button", { cls: "mod-ghost ctc-cr-adv-color-reset" });
+    const textColorSetting = new Setting(colorRow)
+      .setName("Text color")
+      .setClass("ctc-cr-adv-text-color-setting")
+      .addColorPicker((cp) => {
+        cp.setValue(rule.color || "#ffffff");
+        cp.onChange((v) => { rule.color = v; });
+      });
+    const textResetBtn = textColorSetting.settingEl.createEl("button", { cls: "mod-ghost ctc-cr-adv-color-reset" });
     try { setIcon(textResetBtn, "x"); } catch { textResetBtn.textContent = "×"; }
     textResetBtn.title = "Reset text color";
     textResetBtn.addEventListener("click", () => { rule.color = null; });
 
-    const bgColorContainer = colorRow.createDiv({ cls: "ctc-cr-adv-bg-color-container" });
-    bgColorContainer.createEl("span", { text: "Background:" });
-    const bgColorPicker = bgColorContainer.createEl("input", {
-      type: "color",
-      cls: "ctc-cr-adv-bg-color",
-    });
-    bgColorPicker.value = rule.bg || "#000000";
-    const bgResetBtn = bgColorContainer.createEl("button", { cls: "mod-ghost ctc-cr-adv-bg-reset" });
+    const bgColorSetting = new Setting(colorRow)
+      .setName("Background color")
+      .setClass("ctc-cr-adv-bg-color-setting")
+      .addColorPicker((cp) => {
+        cp.setValue(rule.bg || "#000000");
+        cp.onChange((v) => { rule.bg = v; });
+      });
+    const bgResetBtn = bgColorSetting.settingEl.createEl("button", { cls: "mod-ghost ctc-cr-adv-bg-reset" });
     try { setIcon(bgResetBtn, "x"); } catch { bgResetBtn.textContent = "×"; }
     bgResetBtn.title = "Reset background color";
     bgResetBtn.addEventListener("click", () => { rule.bg = null; });
@@ -223,8 +222,8 @@ export class AdvancedRuleModal extends Modal {
         logic: currentLogic,
         conditions,
         target: rule.target,
-        color: textColorPicker.value || null,
-        bg: bgColorPicker.value || null,
+        color: rule.color || null,
+        bg: rule.bg || null,
       };
 
       this.plugin.settings.advancedRules[this.index] = updatedRule;

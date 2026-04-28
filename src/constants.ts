@@ -11,16 +11,6 @@ export const debugWarn = (...args: unknown[]): void => {
   IS_DEVELOPMENT && console.warn("[CTC-WARN]", ...args);
 };
 
-// Allow toggling debug mode from console: window.setDebugMode(true/false)
-if (typeof window !== "undefined") {
-  (window as Window & { setDebugMode?: (v: boolean) => void }).setDebugMode = (
-    value: boolean,
-  ) => {
-    IS_DEVELOPMENT = value;
-    console.log(`[CTC] Debug mode ${value ? "enabled" : "disabled"}`);
-  };
-}
-
 export const DEFAULT_SETTINGS: PluginSettings = {
   enableContextMenu: true,
   showColorRowInMenu: true,
