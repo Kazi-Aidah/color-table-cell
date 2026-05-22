@@ -1,7 +1,7 @@
 import type { PluginSettings, SelectOption } from "./types";
 
 // Debug configuration
-export let IS_DEVELOPMENT = false;
+export const IS_DEVELOPMENT = false;
 
 export const debugLog = (...args: unknown[]): void => {
   IS_DEVELOPMENT && console.log("[CTC-DEBUG]", ...args);

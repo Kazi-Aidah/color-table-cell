@@ -1,3 +1,51 @@
+/* Aggressively ensure the TD background color stays even when active/focused */
+td[data-ctc-bg],
+th[data-ctc-bg] {
+  position: relative;
+  /* Use cell-specific variable if available, otherwise fall back to inherited variable */
+  background-color: var(--ctc-cell-bg, var(--ctc-bg)) !important;
+  background-clip: padding-box !important;
+}
+
+/* Ensure text color is applied everywhere */
+td[data-ctc-color],
+th[data-ctc-color],
+td[data-ctc-color] *,
+th[data-ctc-color] * {
+  color: var(--ctc-cell-color, var(--ctc-color)) !important;
+}
+
+/* Force ALL internal editor elements to be transparent */
+/* Target the wrapper and all potential editor components to ensure they don't have their own background */
+td[data-ctc-bg] .table-cell-wrapper,
+th[data-ctc-bg] .table-cell-wrapper,
+td[data-ctc-bg] .cm-editor,
+th[data-ctc-bg] .cm-editor,
+td[data-ctc-bg] .cm-scroller,
+th[data-ctc-bg] .cm-scroller,
+td[data-ctc-bg] .cm-content,
+th[data-ctc-bg] .cm-content,
+td[data-ctc-bg] .cm-line,
+th[data-ctc-bg] .cm-line,
+td[data-ctc-bg] .cm-active,
+th[data-ctc-bg] .cm-active,
+td[data-ctc-bg] .cm-active.cm-line,
+th[data-ctc-bg] .cm-active.cm-line {
+  background-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Specific fix for Obsidian's active row/line highlighting in Live Preview */
+.markdown-source-view.mod-cm6 .cm-content table td[data-ctc-bg] .cm-active.cm-line,
+.markdown-source-view.mod-cm6 .cm-content table th[data-ctc-bg] .cm-active.cm-line,
+.markdown-source-view.mod-cm6 .cm-content table td[data-ctc-bg] .cm-line,
+.markdown-source-view.mod-cm6 .cm-content table th[data-ctc-bg] .cm-line,
+.markdown-source-view.mod-cm6 .cm-content table td[data-ctc-bg].mod-active-row-handle,
+.markdown-source-view.mod-cm6 .cm-content table th[data-ctc-bg].mod-active-row-handle {
+  background-image: none !important;
+}
+
 td[style*="background-color"],
 th[style*="background-color"] {
   transition: box-shadow 0.15s ease;
@@ -390,13 +438,24 @@ th[style*="background-color"]:hover {
 .ctc-cr-adv-cond-value { flex: 1; min-width: 0; }
 .ctc-cr-adv-add-row { margin-top: 8px; display: flex; justify-content: flex-end; }
 .ctc-cr-adv-add-btn { min-width: 140px; }
-.ctc-cr-adv-color-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
-.ctc-cr-adv-text-color-container,
-.ctc-cr-adv-bg-color-container {
+.ctc-cr-adv-color-row {
   display: flex;
-  gap: 0.3em;
-  align-items: center;
-  margin-top: 3px;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+  border-top: 1px solid var(--background-modifier-border);
+  padding-top: 16px;
+}
+
+.ctc-cr-adv-text-color-setting,
+.ctc-cr-adv-bg-color-setting {
+  border: none !important;
+  padding: 0 !important;
+}
+
+.ctc-cr-adv-color-reset,
+.ctc-cr-adv-bg-reset {
+  margin-left: 8px !important;
 }
 .ctc-cr-adv-target { min-width: 160px; }
 .ctc-cr-adv-text-color, .ctc-cr-adv-bg-color { height: 2em; width: 2em; }
@@ -734,8 +793,7 @@ th[style*="background-color"]:hover {
 }
 
 .ctc-cr-adv-color-reset, .ctc-cr-adv-bg-reset {
-    margin: 10px !important;
-    transform: translateY(-1px);
+    /* Styles removed, handled above */
 }
 
 .ctc-cr-adv-bg-color, .ctc-cr-adv-text-color {
@@ -745,8 +803,6 @@ th[style*="background-color"]:hover {
 .ctc-cr-adv-name-input {
   width: 100%;
 }
-}
-
 
 .ctc-cr-delete-container {
     display: flex;
@@ -767,7 +823,9 @@ body:not(.is-mobile) .ctc-cr-delete-row {
 
 .sc-home-file-item {
   background-color: var(--background-modifier-form-field);
-  &:hover {
-    background-color: var(--background-modifier-form-field-hover);
-  }
+}
+
+.sc-home-file-item:hover {
+  background-color: var(--background-modifier-form-field-hover);
+}
 }

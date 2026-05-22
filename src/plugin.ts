@@ -1,4 +1,4 @@
-import { Plugin, Menu, Notice, debounce } from "obsidian";
+import { Plugin, Menu, Notice, debounce, setIcon } from "obsidian";
 import { debugLog, debugWarn, DEFAULT_SETTINGS } from "./constants";
 import { normalizeCellData, getCellText, evaluateMatch } from "./utils";
 import { ColorPickerMenu } from "./color-picker";
@@ -32,7 +32,7 @@ export default class TableColorPlugin extends Plugin {
     await this.loadSettings();
     if (this.settings.showStatusRefreshIcon) this.createStatusBarIcon();
     if (this.settings.showRibbonRefreshIcon && !this._ribbonRefreshIcon) {
-      this._ribbonRefreshIcon = this.addRibbonIcon("table", "Refresh table colors", () => this.hardRefreshTableColors());
+      this._ribbonRefreshIcon = this.addRibbonIcon("refresh-cw", "Refresh table colors", () => this.hardRefreshTableColors());
     }
     this._registerCommands();
     this._setupLivePreview();
@@ -41,6 +41,12 @@ export default class TableColorPlugin extends Plugin {
     this._appliedContainers = new Map();
     this._containerObservers = new Map();
     this.cellData = normalizeCellData(rawSaved) || {};
+    
+    // Ensure we don't accidentally wipe data if loading failed
+    if (Object.keys(this.cellData).length === 0 && rawSaved.cellData && Object.keys(rawSaved.cellData).length > 0) {
+        this.cellData = rawSaved.cellData;
+    }
+
     try {
       const normalized = { settings: this.settings, cellData: this.cellData };
       if (JSON.stringify(rawSaved) !== JSON.stringify(normalized)) await this.saveData(normalized);
@@ -99,8 +105,12 @@ export default class TableColorPlugin extends Plugin {
         await this.saveSettings();
         this.app.workspace.trigger("layout-change");
         document.querySelectorAll(".cm-content table td, .cm-content table th").forEach((c) => {
-          (c as HTMLElement).style.backgroundColor = "";
-          (c as HTMLElement).style.color = "";
+          const el = c as HTMLElement;
+          el.style.removeProperty("--ctc-bg");
+          el.style.removeProperty("--ctc-color");
+          el.removeAttribute("data-ctc-bg");
+          el.removeAttribute("data-ctc-color");
+          el.removeAttribute("data-ctc-manual");
         });
       },
     });
@@ -164,8 +174,14 @@ export default class TableColorPlugin extends Plugin {
         const restore = () => {
           edEl.querySelectorAll("[data-ctc-bg], [data-ctc-color]").forEach((cell) => {
             const c = cell as HTMLElement;
-            if (c.hasAttribute("data-ctc-bg")) c.style.backgroundColor = c.getAttribute("data-ctc-bg")!;
-            if (c.hasAttribute("data-ctc-color")) c.style.color = c.getAttribute("data-ctc-color")!;
+            if (c.hasAttribute("data-ctc-bg")) {
+              const bg = c.getAttribute("data-ctc-bg")!;
+              c.style.setProperty("--ctc-cell-bg", bg);
+            }
+            if (c.hasAttribute("data-ctc-color")) {
+              const color = c.getAttribute("data-ctc-color")!;
+              c.style.setProperty("--ctc-cell-color", color);
+            }
           });
         };
         edEl._ctcScrollHandler = debounce(restore, 50);
@@ -183,15 +199,22 @@ export default class TableColorPlugin extends Plugin {
     this.registerEvent(this.app.workspace.on("file-open", () => this.applyColorsToActiveFile()));
     this.registerEvent(this.app.workspace.on("layout-change", () => this.applyColorsToActiveFile()));
     this.registerDomEvent(document, "focusin", (e) => {
-      if ((e.target as Element)?.closest?.(".cm-content table")) this.applyColorsToActiveFile();
+      const target = e.target as Element;
+      if (target?.closest?.(".cm-content table")) {
+        // Skip update if already processing or if we're inside the same table
+        // This prevents the TypeError by not touching the DOM while CM is focusing
+        if (this.settings.livePreviewColoring) {
+            window.setTimeout(() => this.applyColorsToActiveFile(), 300);
+        }
+      }
     });
     this.registerDomEvent(document, "input", (e) => {
       if ((e.target as Element)?.closest?.(".cm-content table"))
-        window.setTimeout(() => this.applyColorsToActiveFile(), 30);
+        window.setTimeout(() => this.applyColorsToActiveFile(), 100);
     });
     this.registerDomEvent(document, "pointerdown", (e) => {
       if ((e.target as Element)?.closest?.("td, th") && (e.target as Element)?.closest?.(".cm-content table"))
-        window.setTimeout(() => this.applyColorsToAllEditors(), 10);
+        window.setTimeout(() => this.applyColorsToAllEditors(), 150);
     });
   }
 
@@ -288,22 +311,27 @@ export default class TableColorPlugin extends Plugin {
       const cell = target?.closest("td, th") as HTMLElement | null;
       const tableEl = target?.closest("table") as HTMLElement | null;
       if (!cell || !tableEl) return;
-      if (!cell.closest(".markdown-preview-view") || cell.closest(".cm-content")) return;
+
+      // Restrict manual coloring to Reading Mode only
+      if (!cell.closest(".markdown-preview-view")) return;
+      // Also block if inside an editor (Live Preview)
+      if (cell.closest(".cm-content") || cell.closest(".cm-editor")) return;
+
       const menu = new Menu();
-      menu.addItem((item) => item.setTitle("Color cell text").setIcon("palette").onClick(() => this.pickColor(cell, tableEl, "color")));
-      menu.addItem((item) => item.setTitle("Color cell background").setIcon("droplet").onClick(() => this.pickColor(cell, tableEl, "bg")));
+      menu.addItem((item) => item.setTitle("Color cell text").setIcon("rectangle-horizontal").onClick(() => this.pickColor(cell, tableEl, "color")));
+      menu.addItem((item) => item.setTitle("Color cell background").setIcon("rectangle-horizontal").onClick(() => this.pickColor(cell, tableEl, "bg")));
       if (this.settings.showColorRowInMenu) {
-        menu.addItem((item) => item.setTitle("Color row text").setIcon("palette").onClick(() => this.pickColorForRow(cell, tableEl, "color")));
-        menu.addItem((item) => item.setTitle("Color row background").setIcon("droplet").onClick(() => this.pickColorForRow(cell, tableEl, "bg")));
+        menu.addItem((item) => item.setTitle("Color row text").setIcon("rows-3").onClick(() => this.pickColorForRow(cell, tableEl, "color")));
+        menu.addItem((item) => item.setTitle("Color row background").setIcon("rows-3").onClick(() => this.pickColorForRow(cell, tableEl, "bg")));
       }
       if (this.settings.showColorColumnInMenu) {
-        menu.addItem((item) => item.setTitle("Color column text").setIcon("palette").onClick(() => this.pickColorForColumn(cell, tableEl, "color")));
-        menu.addItem((item) => item.setTitle("Color column background").setIcon("droplet").onClick(() => this.pickColorForColumn(cell, tableEl, "bg")));
+        menu.addItem((item) => item.setTitle("Color column text").setIcon("columns-3").onClick(() => this.pickColorForColumn(cell, tableEl, "color")));
+        menu.addItem((item) => item.setTitle("Color column background").setIcon("columns-3").onClick(() => this.pickColorForColumn(cell, tableEl, "bg")));
       }
       menu.addSeparator();
-      menu.addItem((item) => item.setTitle("Reset cell").setIcon("eraser").onClick(() => this.resetCell(cell, tableEl)));
-      menu.addItem((item) => item.setTitle("Reset row").setIcon("eraser").onClick(() => this.resetRow(cell, tableEl)));
-      menu.addItem((item) => item.setTitle("Reset column").setIcon("eraser").onClick(() => this.resetColumn(cell, tableEl)));
+      menu.addItem((item) => item.setTitle("Reset cell").setIcon("rectangle-horizontal").onClick(() => this.resetCell(cell, tableEl)));
+      menu.addItem((item) => item.setTitle("Reset row").setIcon("rows-3").onClick(() => this.resetRow(cell, tableEl)));
+      menu.addItem((item) => item.setTitle("Reset column").setIcon("columns-3").onClick(() => this.resetColumn(cell, tableEl)));
       if (this.settings.showUndoRedoInMenu) {
         menu.addSeparator();
         menu.addItem((item) => item.setTitle("Undo").setIcon("undo").onClick(() => this.undo()));
@@ -316,10 +344,10 @@ export default class TableColorPlugin extends Plugin {
   createStatusBarIcon(): void {
     if (this.statusBarRefresh) return;
     this.statusBarRefresh = this.addStatusBarItem();
-    this.statusBarRefresh.setText("⟳");
-    this.statusBarRefresh.setAttr("title", "Refresh table colors");
-    this.statusBarRefresh.addClass("ctc-refresh-table-color");
-    this.statusBarRefresh.addEventListener("click", () => this.hardRefreshTableColors());
+    this.statusBarRefresh.addClass("mod-clickable");
+    setIcon(this.statusBarRefresh, "refresh-cw");
+    this.statusBarRefresh.title = "Refresh table colors";
+    this.statusBarRefresh.onclick = () => this.hardRefreshTableColors();
   }
 
   removeStatusBarIcon(): void {
@@ -394,10 +422,13 @@ export default class TableColorPlugin extends Plugin {
   }
 
   async fetchChangelog(): Promise<string> {
-    const url = "https://raw.githubusercontent.com/Kazi-Aidah/color-table-cells/HEAD/CHANGELOG.md";
-    const r = await fetch(url);
-    if (!r.ok) throw new Error("Network error");
-    return r.text();
+    try {
+        const rels = await this.fetchAllReleases();
+        if (rels && rels.length > 0) {
+            return rels[0].body || "No release notes found.";
+        }
+    } catch { /* ignore */ }
+    return "No release notes available.";
   }
 
   updateRecentColor(color: string): void {
@@ -424,25 +455,40 @@ export default class TableColorPlugin extends Plugin {
   }
 
   async pickColor(cell: HTMLElement, tableEl: HTMLElement, type: string): Promise<void> {
+    const fileId = this.app.workspace.getActiveFile()?.path;
+    if (!fileId) return;
+    const tableIndex = this.getGlobalTableIndex(tableEl);
+    const rowIndex = Array.from(tableEl.querySelectorAll("tr") as NodeListOf<HTMLElement>).indexOf(cell.closest("tr") as HTMLElement);
+    const colIndex = Array.from(cell.closest("tr")!.querySelectorAll("td, th")).indexOf(cell);
+    const oldColors = this.cellData[fileId]?.[`table_${tableIndex}`]?.[`row_${rowIndex}`]?.[`col_${colIndex}`];
+    const initialColor = oldColors ? (type === "bg" ? oldColors.bg : oldColors.color) : null;
+
     const menu = new ColorPickerMenu(this, async (pickedColor) => {
-      const fileId = this.app.workspace.getActiveFile()?.path;
-      if (!fileId) return;
-      const tableIndex = this.getGlobalTableIndex(tableEl);
-      const rowIndex = Array.from(tableEl.querySelectorAll("tr") as NodeListOf<HTMLElement>).indexOf(cell.closest("tr") as HTMLElement);
-      const colIndex = Array.from(cell.closest("tr")!.querySelectorAll("td, th")).indexOf(cell);
-      const oldColors = this.cellData[fileId]?.[`table_${tableIndex}`]?.[`row_${rowIndex}`]?.[`col_${colIndex}`];
       if (!this.cellData[fileId]) this.cellData[fileId] = {};
       const noteData = this.cellData[fileId];
       const tableKey = `table_${tableIndex}`;
       if (!noteData[tableKey]) noteData[tableKey] = {};
       const rowKey = `row_${rowIndex}`;
       if (!noteData[tableKey][rowKey]) noteData[tableKey][rowKey] = {};
-      const newColors = { ...(noteData[tableKey][rowKey][`col_${colIndex}`] || {}), [type]: pickedColor } as CellColorData;
-      noteData[tableKey][rowKey][`col_${colIndex}`] = newColors;
-      this.addToUndoStack(this.createSnapshot("cell_color", fileId, tableIndex, { row: rowIndex, col: colIndex }, oldColors, newColors));
-      this.updateRecentColor(pickedColor);
+      
+      const colKey = `col_${colIndex}`;
+      if (pickedColor === null) {
+        // Reset color
+        if (noteData[tableKey][rowKey][colKey]) {
+          delete noteData[tableKey][rowKey][colKey][type as keyof CellColorData];
+          if (Object.keys(noteData[tableKey][rowKey][colKey]).length === 0) {
+            delete noteData[tableKey][rowKey][colKey];
+          }
+        }
+      } else {
+        const newColors = { ...(noteData[tableKey][rowKey][colKey] || {}), [type]: pickedColor } as CellColorData;
+        noteData[tableKey][rowKey][colKey] = newColors;
+        this.addToUndoStack(this.createSnapshot("cell_color", fileId, tableIndex, { row: rowIndex, col: colIndex }, oldColors, newColors));
+        this.updateRecentColor(pickedColor);
+      }
       await this.saveDataColors();
-    }, null, cell);
+      this.applyColorsToActiveFile();
+    }, initialColor, cell);
     menu._cell = cell;
     menu._type = type;
     menu.open();
@@ -451,12 +497,16 @@ export default class TableColorPlugin extends Plugin {
   async pickColorForRow(cell: HTMLElement, tableEl: HTMLElement, type: string): Promise<void> {
     const row = cell.closest("tr") as HTMLElement;
     const rowCells = Array.from(row.querySelectorAll("td, th")) as HTMLElement[];
+    const fileId = this.app.workspace.getActiveFile()?.path;
+    if (!fileId) return;
+    const tableIndex = this.getGlobalTableIndex(tableEl);
+    const rowIndex = Array.from(tableEl.querySelectorAll("tr") as NodeListOf<HTMLElement>).indexOf(row);
+    const oldColors = this.cellData[fileId]?.[`table_${tableIndex}`]?.[`row_${rowIndex}`];
+    // Use the color of the first cell as initial color for the row
+    const firstCellData = oldColors ? oldColors[`col_0`] : null;
+    const initialColor = firstCellData ? (type === "bg" ? firstCellData.bg : firstCellData.color) : null;
+
     const menu = new ColorPickerMenu(this, async (pickedColor) => {
-      const fileId = this.app.workspace.getActiveFile()?.path;
-      if (!fileId) return;
-      const tableIndex = this.getGlobalTableIndex(tableEl);
-      const rowIndex = Array.from(tableEl.querySelectorAll("tr") as NodeListOf<HTMLElement>).indexOf(row);
-      const oldColors = this.cellData[fileId]?.[`table_${tableIndex}`]?.[`row_${rowIndex}`];
       if (!this.cellData[fileId]) this.cellData[fileId] = {};
       const noteData = this.cellData[fileId];
       const tableKey = `table_${tableIndex}`;
@@ -466,13 +516,25 @@ export default class TableColorPlugin extends Plugin {
       const newColors: Record<string, CellColorData> = {};
       rowCells.forEach((rowCell, colIndex) => {
         const colKey = `col_${colIndex}`;
-        newColors[colKey] = { ...(noteData[tableKey][rowKey][colKey] || {}), [type]: pickedColor } as CellColorData;
-        noteData[tableKey][rowKey][colKey] = newColors[colKey];
+        if (pickedColor === null) {
+          if (noteData[tableKey][rowKey][colKey]) {
+            delete noteData[tableKey][rowKey][colKey][type as keyof CellColorData];
+            if (Object.keys(noteData[tableKey][rowKey][colKey]).length === 0) {
+              delete noteData[tableKey][rowKey][colKey];
+            }
+          }
+        } else {
+          newColors[colKey] = { ...(noteData[tableKey][rowKey][colKey] || {}), [type]: pickedColor } as CellColorData;
+          noteData[tableKey][rowKey][colKey] = newColors[colKey];
+        }
       });
-      this.addToUndoStack(this.createSnapshot("row_color", fileId, tableIndex, { row: rowIndex }, oldColors, newColors));
-      this.updateRecentColor(pickedColor);
+      if (pickedColor !== null) {
+        this.addToUndoStack(this.createSnapshot("row_color", fileId, tableIndex, { row: rowIndex }, oldColors, newColors));
+        this.updateRecentColor(pickedColor);
+      }
       await this.saveDataColors();
-    }, null, cell);
+      this.applyColorsToActiveFile();
+    }, initialColor, cell);
     menu._cells = rowCells;
     menu._type = type;
     menu.open();
@@ -485,10 +547,15 @@ export default class TableColorPlugin extends Plugin {
       const cells = row.querySelectorAll("td, th");
       if (colIndex < cells.length) columnCells.push(cells[colIndex] as HTMLElement);
     });
+    const fileId = this.app.workspace.getActiveFile()?.path;
+    if (!fileId) return;
+    const tableIndex = this.getGlobalTableIndex(tableEl);
+    // Use current cell color as initial
+    const rowIndex = Array.from(tableEl.querySelectorAll("tr") as NodeListOf<HTMLElement>).indexOf(cell.closest("tr") as HTMLElement);
+    const oldCellData = this.cellData[fileId]?.[`table_${tableIndex}`]?.[`row_${rowIndex}`]?.[`col_${colIndex}`];
+    const initialColor = oldCellData ? (type === "bg" ? oldCellData.bg : oldCellData.color) : null;
+
     const menu = new ColorPickerMenu(this, async (pickedColor) => {
-      const fileId = this.app.workspace.getActiveFile()?.path;
-      if (!fileId) return;
-      const tableIndex = this.getGlobalTableIndex(tableEl);
       if (!this.cellData[fileId]) this.cellData[fileId] = {};
       const noteData = this.cellData[fileId];
       const tableKey = `table_${tableIndex}`;
@@ -500,26 +567,40 @@ export default class TableColorPlugin extends Plugin {
           const rowKey = `row_${rowIndex}`;
           if (!noteData[tableKey][rowKey]) noteData[tableKey][rowKey] = {};
           const colKey = `col_${colIndex}`;
-          if (!newColors[rowKey]) newColors[rowKey] = {};
-          newColors[rowKey][colKey] = { ...(noteData[tableKey][rowKey][colKey] || {}), [type]: pickedColor } as CellColorData;
-          noteData[tableKey][rowKey][colKey] = newColors[rowKey][colKey];
+          if (pickedColor === null) {
+            if (noteData[tableKey][rowKey][colKey]) {
+              delete noteData[tableKey][rowKey][colKey][type as keyof CellColorData];
+              if (Object.keys(noteData[tableKey][rowKey][colKey]).length === 0) {
+                delete noteData[tableKey][rowKey][colKey];
+              }
+            }
+          } else {
+            if (!newColors[rowKey]) newColors[rowKey] = {};
+            newColors[rowKey][colKey] = { ...(noteData[tableKey][rowKey][colKey] || {}), [type]: pickedColor } as CellColorData;
+            noteData[tableKey][rowKey][colKey] = newColors[rowKey][colKey];
+          }
         }
       });
-      this.addToUndoStack(this.createSnapshot("column_color", fileId, tableIndex, { col: colIndex }, {}, newColors));
-      this.updateRecentColor(pickedColor);
+      if (pickedColor !== null) {
+        this.addToUndoStack(this.createSnapshot("column_color", fileId, tableIndex, { col: colIndex }, {}, newColors));
+        this.updateRecentColor(pickedColor);
+      }
       await this.saveDataColors();
-    }, null, cell);
+      this.applyColorsToActiveFile();
+    }, initialColor, cell);
     menu._cells = columnCells;
     menu._type = type;
     menu.open();
   }
 
   async resetCell(cell: HTMLElement, tableEl: HTMLElement): Promise<void> {
-    cell.style.backgroundColor = "";
-    cell.style.color = "";
     cell.removeAttribute("data-ctc-bg");
     cell.removeAttribute("data-ctc-color");
     cell.removeAttribute("data-ctc-manual");
+    cell.style.removeProperty("--ctc-cell-bg");
+    cell.style.removeProperty("--ctc-cell-color");
+    cell.style.backgroundColor = "";
+    cell.style.color = "";
     const fileId = this.app.workspace.getActiveFile()?.path;
     if (!fileId) return;
     const tableIndex = this.getGlobalTableIndex(tableEl);
@@ -538,11 +619,13 @@ export default class TableColorPlugin extends Plugin {
     const row = cell.closest("tr") as HTMLElement;
     row.querySelectorAll("td, th").forEach((c) => {
       const el = c as HTMLElement;
-      el.style.backgroundColor = "";
-      el.style.color = "";
       el.removeAttribute("data-ctc-bg");
       el.removeAttribute("data-ctc-color");
       el.removeAttribute("data-ctc-manual");
+      el.style.removeProperty("--ctc-cell-bg");
+      el.style.removeProperty("--ctc-cell-color");
+      el.style.backgroundColor = "";
+      el.style.color = "";
     });
     const fileId = this.app.workspace.getActiveFile()?.path;
     if (!fileId) return;
@@ -563,11 +646,13 @@ export default class TableColorPlugin extends Plugin {
       const cells = row.querySelectorAll("td, th");
       if (colIndex < cells.length) {
         const c = cells[colIndex] as HTMLElement;
-        c.style.backgroundColor = "";
-        c.style.color = "";
         c.removeAttribute("data-ctc-bg");
         c.removeAttribute("data-ctc-color");
         c.removeAttribute("data-ctc-manual");
+        c.style.removeProperty("--ctc-cell-bg");
+        c.style.removeProperty("--ctc-cell-color");
+        c.style.backgroundColor = "";
+        c.style.color = "";
       }
     });
     const fileId = this.app.workspace.getActiveFile()?.path;
@@ -690,11 +775,33 @@ export default class TableColorPlugin extends Plugin {
     };
     const applyCellStyle = (cell: HTMLElement | null, rule: { bg?: string | null; color?: string | null }) => {
       if (!cell) return;
-      if (cell.hasAttribute("data-ctc-manual")) return;
+      if (cell.hasAttribute("data-ctc-manual")) {
+        // Even if manual, ensure the CSS variables are set if attributes exist
+        if (cell.hasAttribute("data-ctc-bg")) {
+          cell.style.setProperty("--ctc-cell-bg", cell.getAttribute("data-ctc-bg")!);
+        }
+        if (cell.hasAttribute("data-ctc-color")) {
+          cell.style.setProperty("--ctc-cell-color", cell.getAttribute("data-ctc-color")!);
+        }
+        return;
+      }
       const isHeader = cell.tagName === "TH";
-      if (!isHeader && (cell.style.backgroundColor || cell.style.color)) return;
-      if (rule.bg) cell.style.backgroundColor = rule.bg;
-      if (rule.color) cell.style.color = rule.color;
+      
+      if (rule.bg) {
+        cell.setAttribute("data-ctc-bg", rule.bg);
+        cell.style.setProperty("--ctc-cell-bg", rule.bg);
+      } else if (cell.hasAttribute("data-ctc-bg")) {
+        cell.removeAttribute("data-ctc-bg");
+        cell.style.removeProperty("--ctc-cell-bg");
+      }
+      
+      if (rule.color) {
+        cell.setAttribute("data-ctc-color", rule.color);
+        cell.style.setProperty("--ctc-cell-color", rule.color);
+      } else if (cell.hasAttribute("data-ctc-color")) {
+        cell.removeAttribute("data-ctc-color");
+        cell.style.removeProperty("--ctc-cell-color");
+      }
     };
     for (const rule of rules) {
       if (!rule?.target || !rule.match) continue;
@@ -764,10 +871,24 @@ export default class TableColorPlugin extends Plugin {
       const conditions = Array.isArray(rule.conditions) ? rule.conditions : [];
       if (!conditions.length) continue;
       const applyCell = (cell: HTMLElement | null) => {
-        if (!cell || cell.hasAttribute("data-ctc-manual")) return;
-        if (cell.tagName !== "TH" && (cell.style.backgroundColor || cell.style.color)) return;
-        if (bg) cell.style.backgroundColor = bg;
-        if (color) cell.style.color = color;
+        if (!cell || cell.hasAttribute("data-ctc-manual")) {
+          // Sync CSS variables even if manual
+          if (cell?.hasAttribute("data-ctc-bg")) {
+            cell.style.setProperty("--ctc-cell-bg", cell.getAttribute("data-ctc-bg")!);
+          }
+          if (cell?.hasAttribute("data-ctc-color")) {
+            cell.style.setProperty("--ctc-cell-color", cell.getAttribute("data-ctc-color")!);
+          }
+          return;
+        }
+        if (bg) {
+          cell.setAttribute("data-ctc-bg", bg);
+          cell.style.setProperty("--ctc-cell-bg", bg);
+        }
+        if (color) {
+          cell.setAttribute("data-ctc-color", color);
+          cell.style.setProperty("--ctc-cell-color", color);
+        }
       };
       if (target === "row") {
         const allHeader = conditions.every((c) => c.when === "columnHeader");
@@ -808,11 +929,11 @@ export default class TableColorPlugin extends Plugin {
     if (!element?.style) return;
     if (element.hasAttribute("data-ctc-bg")) {
       const bg = element.getAttribute("data-ctc-bg")!;
-      if (bg && bg !== element.style.backgroundColor) element.style.backgroundColor = bg;
+      element.style.setProperty("--ctc-cell-bg", bg);
     }
     if (element.hasAttribute("data-ctc-color")) {
       const color = element.getAttribute("data-ctc-color")!;
-      if (color && color !== element.style.color) element.style.color = color;
+      element.style.setProperty("--ctc-cell-color", color);
     }
   }
 
@@ -862,9 +983,10 @@ export default class TableColorPlugin extends Plugin {
     } catch { /* ignore */ }
   }
 
-  applyColorsToActiveFile(): void {
+ async applyColorsToActiveFile(): Promise<void> {
     const file = this.app.workspace.getActiveFile();
     if (!file) return;
+    debugLog(`[CTC] applyColorsToActiveFile triggered for ${file.path}`);
     const noteData = this.cellData[file.path] || {};
     let previewViews: HTMLElement[] = [];
     try {
@@ -900,22 +1022,7 @@ export default class TableColorPlugin extends Plugin {
       });
     }
     if (fileTableIndex === 0) { window.setTimeout(() => this.applyColorsToActiveFile(), 100); return; }
-    previewViews.forEach((view) => {
-      view.querySelectorAll("td, th").forEach((cell) => {
-        if (!(cell as HTMLElement).hasAttribute("data-ctc-manual")) {
-          (cell as HTMLElement).style.backgroundColor = "";
-          (cell as HTMLElement).style.color = "";
-        }
-      });
-    });
-    if (this.settings.livePreviewColoring) {
-      document.querySelectorAll(".cm-content table td, .cm-content table th").forEach((cell) => {
-        if (!(cell as HTMLElement).hasAttribute("data-ctc-manual")) {
-          (cell as HTMLElement).style.backgroundColor = "";
-          (cell as HTMLElement).style.color = "";
-        }
-      });
-    }
+    
     previewViews.forEach((view) => {
       if (view.isConnected) {
         Array.from(view.querySelectorAll("table")).forEach((table) => {
@@ -956,7 +1063,17 @@ export default class TableColorPlugin extends Plugin {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     noteData: Record<string, any>,
   ): number {
-    if (!tableEl.hasAttribute("data-ctc-processed")) {
+    if (!tableEl || !tableEl.isConnected) return 0;
+    const isLivePreview = !!tableEl.closest(".cm-content");
+    debugLog(`[CTC] Processing table ${tableIndex} (LP: ${isLivePreview})`);
+    
+    // Safety check: don't process if Obsidian is likely in the middle of a focus swap
+    const activeEl = document.activeElement;
+    if (isLivePreview && activeEl?.closest("table") === tableEl && !tableEl.hasAttribute("data-ctc-last-processed")) {
+       // First time processing a focused table, delay slightly
+    }
+
+    if (!tableEl.hasAttribute("data-ctc-processed") || isLivePreview) {
       tableEl.setAttribute("data-ctc-processed", "true");
       tableEl.setAttribute("data-ctc-index", String(tableIndex));
       tableEl.setAttribute("data-ctc-file", filePath);
@@ -996,7 +1113,9 @@ export default class TableColorPlugin extends Plugin {
     Array.from(tableEl.querySelectorAll("tr")).forEach((tr, rIdx) => {
       Array.from(tr.querySelectorAll("td, th")).forEach((cell, cIdx) => {
         const el = cell as HTMLElement;
-        if (el.style.backgroundColor || el.style.color) cellsWithRuleColor.add(`${rIdx}_${cIdx}`);
+        if (el.hasAttribute("data-ctc-bg") || el.hasAttribute("data-ctc-color")) {
+          cellsWithRuleColor.add(`${rIdx}_${cIdx}`);
+        }
       });
     });
 
@@ -1005,11 +1124,27 @@ export default class TableColorPlugin extends Plugin {
       Array.from(tr.querySelectorAll("td, th")).forEach((cell, cIdx) => {
         const cellKey = `${rIdx}_${cIdx}`;
         const colorData = manualColorData[cellKey];
+        const el = cell as HTMLElement;
         if (colorData && !cellsWithRuleColor.has(cellKey)) {
           coloredCount++;
-          const el = cell as HTMLElement;
-          if (colorData.bg) el.style.backgroundColor = colorData.bg as string;
-          if (colorData.color) el.style.color = colorData.color as string;
+          if (colorData.bg) {
+            debugLog(`[CTC-Manual] Applying BG to ${rIdx}:${cIdx}: ${colorData.bg}`);
+            el.setAttribute("data-ctc-bg", colorData.bg as string);
+            el.style.setProperty("--ctc-cell-bg", colorData.bg as string);
+          }
+          if (colorData.color) {
+            el.setAttribute("data-ctc-color", colorData.color as string);
+            el.style.setProperty("--ctc-cell-color", colorData.color as string);
+          }
+          if (!el.hasAttribute("data-ctc-manual")) el.setAttribute("data-ctc-manual", "true");
+        } else {
+          // Sync even if not manual or if cleared
+          if (el.hasAttribute("data-ctc-bg")) {
+            el.style.setProperty("--ctc-cell-bg", el.getAttribute("data-ctc-bg")!);
+          }
+          if (el.hasAttribute("data-ctc-color")) {
+            el.style.setProperty("--ctc-cell-color", el.getAttribute("data-ctc-color")!);
+          }
         }
       });
     });
@@ -1052,5 +1187,15 @@ export default class TableColorPlugin extends Plugin {
         });
       });
     }, 2000);
+  }
+
+  async fetchAllReleases(): Promise<any[]> {
+    try {
+      const response = await fetch("https://api.github.com/repos/Kazi-Aidah/color-table-cells/releases");
+      if (!response.ok) return [];
+      return await response.json();
+    } catch {
+      return [];
+    }
   }
 }

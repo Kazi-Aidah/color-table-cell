@@ -59,7 +59,7 @@ class ConditionRow {
       this.onChange();
     });
 
-    const delBtn = row.createEl("button", { cls: "mod-ghost" });
+    const delBtn = row.createEl("button", { cls: "clickable-icon" });
     try { setIcon(delBtn, "x"); } catch { delBtn.textContent = "×"; }
     delBtn.addEventListener("click", () => {
       row.remove();
@@ -167,7 +167,7 @@ export class AdvancedRuleModal extends Modal {
         cp.setValue(rule.color || "#ffffff");
         cp.onChange((v) => { rule.color = v; });
       });
-    const textResetBtn = textColorSetting.settingEl.createEl("button", { cls: "mod-ghost ctc-cr-adv-color-reset" });
+    const textResetBtn = textColorSetting.controlEl.createEl("button", { cls: "clickable-icon ctc-cr-adv-color-reset" });
     try { setIcon(textResetBtn, "x"); } catch { textResetBtn.textContent = "×"; }
     textResetBtn.title = "Reset text color";
     textResetBtn.addEventListener("click", () => { rule.color = null; });
@@ -179,7 +179,7 @@ export class AdvancedRuleModal extends Modal {
         cp.setValue(rule.bg || "#000000");
         cp.onChange((v) => { rule.bg = v; });
       });
-    const bgResetBtn = bgColorSetting.settingEl.createEl("button", { cls: "mod-ghost ctc-cr-adv-bg-reset" });
+    const bgResetBtn = bgColorSetting.controlEl.createEl("button", { cls: "clickable-icon ctc-cr-adv-bg-reset" });
     try { setIcon(bgResetBtn, "x"); } catch { bgResetBtn.textContent = "×"; }
     bgResetBtn.title = "Reset background color";
     bgResetBtn.addEventListener("click", () => { rule.bg = null; });

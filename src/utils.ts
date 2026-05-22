@@ -5,28 +5,16 @@ import type { CellDataStore, CellColorData, ColoringRule } from "./types";
  * Normalize raw saved data to extract the cellData object,
  * unwrapping any legacy wrapper keys.
  */
-export function normalizeCellData(obj: unknown): CellDataStore {
-  let cur = obj as Record<string, unknown>;
-  const seen = new Set<unknown>();
-  try {
-    while (cur && typeof cur === "object" && !Array.isArray(cur)) {
-      if (seen.has(cur)) break;
-      seen.add(cur);
-      const keys = Object.keys(cur);
-      const nonMeta = keys.filter((k) => k !== "settings" && k !== "cellData");
-      if (nonMeta.length > 0) return cur as CellDataStore;
-      if (keys.length === 1) { cur = cur[keys[0]] as Record<string, unknown>; continue; }
-      if (keys.length === 2 && keys.includes("settings") && keys.includes("cellData")) {
-        if (cur.cellData && typeof cur.cellData === "object") { cur = cur.cellData as Record<string, unknown>; continue; }
-        return {};
-      }
-      return cur as CellDataStore;
-    }
-    return {};
-  } catch (e) {
-    debugWarn("Error normalizing cell data:", e);
-    return {};
+export function normalizeCellData(obj: any): CellDataStore {
+  if (!obj) return {};
+  if (obj.cellData && typeof obj.cellData === "object") {
+    return obj.cellData as CellDataStore;
   }
+  // If cellData is missing but there are other keys, the object itself might be the cellData
+  if (obj.settings) {
+    return {}; // settings exists but cellData doesn't
+  }
+  return obj as CellDataStore;
 }
 
 /** Convert hex color string to HSV components */
